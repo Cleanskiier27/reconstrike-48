@@ -1,0 +1,243 @@
+{
+  "challenge": "ch5-blue-mirror",
+  "metadata": {
+    "title": "Comprehensive Malware Family IOC Collection",
+    "description": "Combined IOCs for Dropper Dawn (Ch1) and Silent Beacon (Ch2)",
+    "created": "2026-07-27T19:16:00Z",
+    "analyst": "Cleanskiier27",
+    "confidence_level": "High",
+    "last_updated": "2026-07-27"
+  },
+  "sample_hashes": {
+    "dropper": [
+      {
+        "sha256": "d41d8cd98f00b204e9800998ecf8427e7f8d9f4f8d9f4f8d9f4f8d9f4f8d9f4",
+        "md5": "098f6bcd4621d373cade4e832627b4f6",
+        "sha1": "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3",
+        "name": "InstallUpdate.exe",
+        "type": "Dropper"
+      }
+    ],
+    "beacon": [
+      {
+        "sha256": "xyz789abc123def456ghi789jkl012mno345pqr678stu901vwx234yz",
+        "md5": "fedcba9876543210fedcba9876543210",
+        "sha1": "0123456789abcdef0123456789abcdef01234567",
+        "name": "beacon_core.dll",
+        "type": "Beacon DLL"
+      }
+    ]
+  },
+  "c2_infrastructure": {
+    "domains": [
+      "beacon.update-services.net",
+      "c2.windowsupdate-sync.com",
+      "updatecenter.cloud-monitor.io"
+    ],
+    "ip_addresses": [
+      "185.220.101.45",
+      "185.220.102.8"
+    ],
+    "ports": [443, 8080, 53],
+    "protocols": ["HTTPS", "HTTP", "DNS"]
+  },
+  "file_artifacts": {
+    "dropper_drops": [
+      "C:\\Windows\\System32\\wupdater.exe",
+      "C:\\Windows\\Temp\\wupdate.tmp",
+      "C:\\ProgramData\\WindowsUpdate\\beacon.dll"
+    ],
+    "beacon_config": [
+      "C:\\Windows\\System32\\drivers\\etc\\beacon_config.dat",
+      "C:\\ProgramData\\WindowsUpdate\\beacon.log"
+    ]
+  },
+  "registry_artifacts": {
+    "run_keys": [
+      "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdate",
+      "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\WindowsUpdate"
+    ],
+    "runonce_keys": [
+      "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\WindowsUpdate"
+    ]
+  },
+  "process_artifacts": [
+    "wupdater.exe",
+    "wupdate.exe",
+    "windowsupdater.exe"
+  ],
+  "network_indicators": {
+    "domains_blocklist": [
+      "beacon.update-services.net",
+      "c2.windowsupdate-sync.com",
+      "updatecenter.cloud-monitor.io",
+      "*.update-services.net",
+      "*.windowsupdate-sync.com"
+    ],
+    "ip_blocklist": [
+      "185.220.101.45",
+      "185.220.102.8"
+    ],
+    "asn_blocklist": [
+      "AS206089"
+    ]
+  },
+  "urls": [
+    "https://beacon.update-services.net/update/check",
+    "https://beacon.update-services.net/update/upload",
+    "http://192.0.2.0:8080/update/status",
+    "https://c2.windowsupdate-sync.com/sync/check"
+  ],
+  "dns_patterns": {
+    "query_patterns": [
+      "*.beacon.update-services.net",
+      "*.c2.windowsupdate-sync.com",
+      "cmd.beacon.*",
+      "command.beacon.*",
+      "status.beacon.*"
+    ],
+    "txt_record_queries": [
+      "cmd.beacon.update-services.net",
+      "status.beacon.update-services.net"
+    ]
+  },
+  "user_agent_indicators": [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "custom-beacon-client/2.1.5"
+  ],
+  "certificate_indicators": [
+    {
+      "issuer": "Self-signed",
+      "subject_cn": "update-services.net",
+      "subject_org": "Microsoft",
+      "confidence": "High"
+    }
+  ],
+  "behavioral_indicators": {
+    "registry_operations": [
+      "RegOpenKeyEx HKLM\\...\\Run",
+      "RegSetValueEx WindowsUpdate",
+      "RegCreateKeyEx Persistence paths"
+    ],
+    "file_operations": [
+      "CreateFileA System32",
+      "WriteFile Binary data",
+      "SetFileAttributes Hidden"
+    ],
+    "process_operations": [
+      "CreateProcessA wupdater.exe",
+      "VirtualAllocEx + WriteProcessMemory + CreateRemoteThread",
+      "ShellExecuteA"
+    ],
+    "network_operations": [
+      "HTTPS POST /update/check",
+      "HTTPS POST /update/upload",
+      "DNS TXT queries",
+      "HTTP POST /update/status"
+    ]
+  },
+  "mitre_techniques": [
+    {
+      "tactic": "Initial Access",
+      "technique_id": "T1566.002",
+      "technique_name": "Phishing: Spearphishing Link",
+      "indicators": ["Social engineering delivery"]
+    },
+    {
+      "tactic": "Execution",
+      "technique_id": "T1053.005",
+      "technique_name": "Scheduled Task/Job",
+      "indicators": ["WindowsUpdateClient scheduled task"]
+    },
+    {
+      "tactic": "Persistence",
+      "technique_id": "T1547.001",
+      "technique_name": "Boot or Logon Autostart Execution: Registry Run Keys",
+      "indicators": ["HKLM\\...\\Run\\WindowsUpdate"]
+    },
+    {
+      "tactic": "Privilege Escalation",
+      "technique_id": "T1548.002",
+      "technique_name": "Abuse Elevation Control Mechanism",
+      "indicators": ["UAC bypass attempts"]
+    },
+    {
+      "tactic": "Defense Evasion",
+      "technique_id": "T1036.005",
+      "technique_name": "Masquerading: Match Legitimate Name or Location",
+      "indicators": ["wupdater.exe in System32", "Windows Update process naming"]
+    },
+    {
+      "tactic": "Command and Control",
+      "technique_id": "T1071.001",
+      "technique_name": "Application Layer Protocol: Web Protocols",
+      "indicators": ["HTTPS POST to C2"]
+    },
+    {
+      "tactic": "Exfiltration",
+      "technique_id": "T1041",
+      "technique_name": "Exfiltration Over C2 Channel",
+      "indicators": ["Data sent via HTTPS POST"]
+    }
+  ],
+  "detection_signatures": {
+    "antivirus_names": [
+      "Trojan.Dropper.WindowsUpdate",
+      "Gen.Trojan.Dropper",
+      "Adware.Dropper.Wupdate",
+      "Trojan.Beacon.Net"
+    ],
+    "sigma_rule_ids": [
+      "ch5-malware-persistence-registry-01",
+      "ch5-malware-injection-01",
+      "ch5-malware-beacon-execution-02",
+      "ch5-malware-network-sys-03",
+      "ch5-malware-dns-c2-04",
+      "ch5-malware-scheduled-task-05",
+      "ch5-malware-file-drop-06"
+    ],
+    "yara_rule_names": [
+      "Dropper_WindowsUpdate_Masquerade",
+      "Beacon_C2_Infrastructure_Hardcoded",
+      "Beacon_Process_Injection_Signature",
+      "Command_Execution_Capability",
+      "Data_Exfiltration_Capability"
+    ]
+  },
+  "hunting_queries": {
+    "splunk": [
+      "index=windows EventID=13 RegistryPath=\"*\\CurrentVersion\\Run\" RegistryValueName=\"WindowsUpdate\"",
+      "index=windows EventID=3 DestinationHostname=\"beacon.update-services.net\" DestinationPort=443",
+      "index=windows EventID=1 Image=\"*svchost.exe\" ParentImage=\"*wupdater.exe\""
+    ],
+    "elasticsearch": [
+      "event.code:13 AND registry.path:*CurrentVersion\\Run AND registry.value_name:WindowsUpdate",
+      "event.code:3 AND destination.domain:beacon.update-services.net AND destination.port:443",
+      "event.code:1 AND process.parent.name:wupdater.exe AND process.name:cmd.exe"
+    ]
+  },
+  "remediation_commands": {
+    "windows": [
+      "reg delete \"HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v WindowsUpdate /f",
+      "del C:\\Windows\\System32\\wupdater.exe /f",
+      "taskkill /im wupdater.exe /f",
+      "schtasks /delete /tn \"\\Microsoft\\Windows\\WindowsUpdate\\WindowsUpdateClient\" /f"
+    ]
+  },
+  "related_samples": {
+    "variants": [
+      {
+        "name": "UpdateClient.exe",
+        "type": "Dropper variant",
+        "confidence": "High"
+      },
+      {
+        "name": "ServiceUpdate.exe",
+        "type": "Dropper variant",
+        "confidence": "Medium"
+      }
+    ]
+  },
+  "threat_level": "CRITICAL",
+  "estimated_impact": "Full system compromise with SYSTEM-level privileges, persistent C2 communication, data exfiltration capability, lateral movement potential"
+}
