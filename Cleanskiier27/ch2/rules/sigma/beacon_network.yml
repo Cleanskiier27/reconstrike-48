@@ -1,0 +1,363 @@
+title: Outbound HTTPS Connection to Suspicious C2 Domain
+id: ch2-beacon-https-c2-01
+description: Detects outbound HTTPS connections to beacon C2 domains
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+  - https://attack.mitre.org/techniques/T1041/
+tags:
+  - attack.command_and_control
+  - attack.exfiltration
+  - challenge.ch2
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    DestinationPort: 443
+    DestinationHostname|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+      - 'updatecenter.cloud-monitor.io'
+  filter_legit:
+    Image|endswith:
+      - 'svchost.exe'
+      - 'lsass.exe'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: DNS Query to Beacon C2 Domain
+id: ch2-beacon-dns-query-02
+description: Detects DNS queries to beacon C2 infrastructure
+references:
+  - https://attack.mitre.org/techniques/T1071/004/
+tags:
+  - attack.command_and_control
+  - challenge.ch2
+logsource:
+  category: dns_query
+  product: windows
+detection:
+  selection:
+    QueryName|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+      - 'updatecenter.cloud-monitor.io'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: Process Injection into svchost.exe
+id: ch2-beacon-process-injection-03
+description: Detects DLL injection into system service host process
+references:
+  - https://attack.mitre.org/techniques/T1055/
+  - https://attack.mitre.org/techniques/T1036/005/
+tags:
+  - attack.defense_evasion
+  - attack.execution
+  - challenge.ch2
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    EventID: 10
+    TargetImage|endswith: 'svchost.exe'
+    CallTrace|contains: 'VirtualAllocEx'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: svchost.exe Creating Child Processes
+id: ch2-beacon-svchost-child-04
+description: Detects svchost.exe spawning unexpected child processes
+references:
+  - https://attack.mitre.org/techniques/T1651/
+tags:
+  - attack.execution
+  - challenge.ch2
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    ParentImage|endswith: 'svchost.exe'
+    Image|endswith:
+      - 'cmd.exe'
+      - 'powershell.exe'
+      - 'whoami.exe'
+      - 'ipconfig.exe'
+      - 'systeminfo.exe'
+  filter_admin:
+    User|contains: 'SYSTEM'
+  condition: selection and filter_admin
+level: high
+status: experimental
+
+---
+title: Unexpected Network Connection from svchost.exe
+id: ch2-beacon-svchost-network-05
+description: Detects network connections initiated by svchost.exe
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+tags:
+  - attack.command_and_control
+  - challenge.ch2
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    Image|endswith: 'svchost.exe'
+    DestinationPort: 443
+    Initiated: 'true'
+  filter_legit:
+    DestinationHostname|contains:
+      - 'microsoft.com'
+      - 'windows.com'
+      - 'update.microsoft.com'
+  condition: selection and not filter_legit
+level: high
+status: experimental
+
+---
+title: HTTP POST with Suspicious User-Agent from System Process
+id: ch2-beacon-http-post-ua-06
+description: Detects HTTP POST requests with suspicious User-Agent from system processes
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+tags:
+  - attack.command_and_control
+  - challenge.ch2
+logsource:
+  category: proxy
+  product: windows
+detection:
+  selection:
+    c-uri|contains: '/update/'
+    method: 'POST'
+    cs-host|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+    cs-user-agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Base64 Encoded Data in HTTP POST
+id: ch2-beacon-base64-exfil-07
+description: Detects exfiltration of base64-encoded data via HTTP POST
+references:
+  - https://attack.mitre.org/techniques/T1041/
+tags:
+  - attack.exfiltration
+  - challenge.ch2
+logsource:
+  category: proxy
+  product: windows
+detection:
+  selection:
+    method: 'POST'
+    c-uri|contains: '/upload'
+    cs-Content-Type: 'application/json'
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Registry Persistence for Beacon
+id: ch2-beacon-registry-persist-08
+description: Detects creation of registry persistence for beacon/wupdater
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+tags:
+  - attack.persistence
+  - challenge.ch2
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection:
+    RegistryPath|contains: '\Software\Microsoft\Windows\CurrentVersion\Run'
+    RegistryValueName|contains:
+      - 'WindowsUpdate'
+      - 'wupdater'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: Scheduled Task for Beacon Reinfection
+id: ch2-beacon-schtask-09
+description: Detects creation of scheduled task for persistent beacon execution
+references:
+  - https://attack.mitre.org/techniques/T1547/010/
+tags:
+  - attack.persistence
+  - challenge.ch2
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_schtasks:
+    Image|endswith: 'schtasks.exe'
+    CommandLine|contains: '/create'
+  selection_beacon:
+    CommandLine|contains:
+      - 'WindowsUpdateClient'
+      - 'wupdater'
+      - 'beacon'
+  condition: selection_schtasks and selection_beacon
+level: high
+status: experimental
+
+---
+title: DNS TXT Record Query for Command Channel
+id: ch2-beacon-dns-txt-10
+description: Detects DNS TXT record queries used for C2 command delivery
+references:
+  - https://attack.mitre.org/techniques/T1071/004/
+tags:
+  - attack.command_and_control
+  - challenge.ch2
+logsource:
+  category: dns_query
+  product: windows
+detection:
+  selection:
+    QueryType: 'TXT'
+    QueryName|contains:
+      - 'cmd.beacon'
+      - 'command.beacon'
+      - 'status.beacon'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: Long-Lived HTTPS Connection
+id: ch2-beacon-long-connection-11
+description: Detects long-duration HTTPS connection indicative of C2 keep-alive
+references:
+  - https://attack.mitre.org/techniques/T1095/
+tags:
+  - attack.command_and_control
+  - challenge.ch2
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    DestinationPort: 443
+    Destination|contains:
+      - '185.220.101.45'
+      - '185.220.102.8'
+    Duration|min: 300
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Credential Enumeration by Beacon
+id: ch2-beacon-credential-enum-12
+description: Detects beacon enumerating cached credentials
+references:
+  - https://attack.mitre.org/techniques/T1187/
+tags:
+  - attack.discovery
+  - challenge.ch2
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith:
+      - 'wupdater.exe'
+      - 'svchost.exe'
+    CommandLine|contains:
+      - 'CredEnum'
+      - 'LogonSessions'
+      - 'SecLogonUser'
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Beacon Command Execution Pattern
+id: ch2-beacon-exec-pattern-13
+description: Detects beacon executing commands via cmd.exe
+references:
+  - https://attack.mitre.org/techniques/T1651/
+tags:
+  - attack.execution
+  - challenge.ch2
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    ParentImage|endswith:
+      - 'wupdater.exe'
+      - 'svchost.exe'
+    Image|endswith: 'cmd.exe'
+    CommandLine|contains:
+      - 'ipconfig'
+      - 'tasklist'
+      - 'net user'
+      - 'whoami'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: Beacon Lateral Movement via WMI
+id: ch2-beacon-wmi-lateral-14
+description: Detects beacon attempting lateral movement via WMI
+references:
+  - https://attack.mitre.org/techniques/T1570/
+tags:
+  - attack.lateral_movement
+  - challenge.ch2
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: 'wmic.exe'
+    CommandLine|contains:
+      - '/node:'
+      - '/format:list'
+      - 'process call create'
+  parent:
+    ParentImage|endswith:
+      - 'wupdater.exe'
+      - 'svchost.exe'
+  condition: selection and parent
+level: high
+status: experimental
+
+---
+title: Bulletproof Hosting IP Connection
+id: ch2-beacon-bulletproof-ip-15
+description: Detects connection to known bulletproof hosting IP addresses
+references:
+  - https://attack.mitre.org/techniques/T1071/001/
+tags:
+  - attack.command_and_control
+  - challenge.ch2
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection:
+    DestinationIp:
+      - '185.220.101.45'
+      - '185.220.102.8'
+  condition: selection
+level: high
+status: experimental

@@ -1,0 +1,332 @@
+{
+  "challenge": "ch2-silent-beacon",
+  "beacon_c2_infrastructure": {
+    "primary_domains": [
+      {
+        "domain": "beacon.update-services.net",
+        "confidence": "high",
+        "first_seen": "2026-01-15",
+        "registrar": "PrivacyGuard Inc",
+        "registration_country": "Offshore",
+        "status": "active"
+      },
+      {
+        "domain": "c2.windowsupdate-sync.com",
+        "confidence": "high",
+        "first_seen": "2026-01-20",
+        "registrar": "Redacted Registrar",
+        "registration_country": "Unknown",
+        "status": "active"
+      },
+      {
+        "domain": "updatecenter.cloud-monitor.io",
+        "confidence": "medium",
+        "first_seen": "2026-02-01",
+        "registrar": "Privacy Services",
+        "registration_country": "Offshore",
+        "status": "active"
+      }
+    ],
+    "c2_ip_addresses": [
+      {
+        "ip": "185.220.101.45",
+        "port": 443,
+        "protocol": "HTTPS",
+        "confidence": "high",
+        "asn": "AS206089",
+        "asn_description": "Bulletproof Hosting",
+        "hosting_provider": "Unknown / Compromised",
+        "first_seen": "2026-01-15"
+      },
+      {
+        "ip": "185.220.102.8",
+        "port": 443,
+        "protocol": "HTTPS",
+        "confidence": "high",
+        "asn": "AS206089",
+        "asn_description": "Bulletproof Hosting",
+        "hosting_provider": "Unknown / Compromised",
+        "first_seen": "2026-01-20"
+      },
+      {
+        "ip": "192.0.2.0",
+        "port": 8080,
+        "protocol": "HTTP",
+        "confidence": "medium",
+        "asn": "AS64496",
+        "asn_description": "Example/Test Range",
+        "hosting_provider": "Test Infrastructure",
+        "first_seen": "2026-02-01"
+      }
+    ]
+  },
+  "beacon_communication": {
+    "primary_channel": {
+      "protocol": "HTTPS",
+      "port": 443,
+      "endpoint": "/update/check",
+      "method": "POST",
+      "content_type": "application/json",
+      "check_in_interval": 300,
+      "jitter": 30,
+      "encryption": "Custom TLS variant with modified cipher suite"
+    },
+    "fallback_channel": {
+      "protocol": "HTTP",
+      "port": 8080,
+      "endpoint": "/update/status",
+      "method": "POST",
+      "content_type": "application/x-www-form-urlencoded"
+    },
+    "dns_tunnel_channel": {
+      "protocol": "DNS",
+      "port": 53,
+      "record_type": "TXT",
+      "query_pattern": "*.beacon.update-services.net",
+      "data_encoding": "Base64 in TXT records"
+    }
+  },
+  "beacon_commands": [
+    {
+      "command": "exec",
+      "description": "Execute arbitrary shell command",
+      "parameters": ["cmd", "timeout"],
+      "confidence": "high"
+    },
+    {
+      "command": "upload",
+      "description": "Exfiltrate file from infected system",
+      "parameters": ["path", "size_limit"],
+      "confidence": "high"
+    },
+    {
+      "command": "download",
+      "description": "Download and execute file from C2",
+      "parameters": ["path", "url"],
+      "confidence": "high"
+    },
+    {
+      "command": "enum",
+      "description": "Enumerate system information",
+      "parameters": ["scope"],
+      "confidence": "high"
+    },
+    {
+      "command": "inject",
+      "description": "Inject DLL or shellcode into process",
+      "parameters": ["target_process", "payload"],
+      "confidence": "medium"
+    },
+    {
+      "command": "sleep",
+      "description": "Pause beacon communication",
+      "parameters": ["interval"],
+      "confidence": "medium"
+    },
+    {
+      "command": "die",
+      "description": "Terminate beacon process",
+      "parameters": [],
+      "confidence": "medium"
+    }
+  ],
+  "urls": [
+    {
+      "url": "https://beacon.update-services.net:443/update/check",
+      "method": "POST",
+      "purpose": "Beacon check-in and command retrieval",
+      "confidence": "high"
+    },
+    {
+      "url": "https://beacon.update-services.net:443/update/upload",
+      "method": "POST",
+      "purpose": "Data exfiltration",
+      "confidence": "high"
+    },
+    {
+      "url": "http://192.0.2.0:8080/update/status",
+      "method": "POST",
+      "purpose": "Fallback check-in channel",
+      "confidence": "medium"
+    },
+    {
+      "url": "https://c2.windowsupdate-sync.com:443/sync/check",
+      "method": "POST",
+      "purpose": "Secondary C2 channel",
+      "confidence": "high"
+    }
+  ],
+  "beacon_configuration": {
+    "beacon_id_generation": "Machine GUID + timestamp hash",
+    "session_token": "AES-256 encrypted with hardware serial",
+    "communication_cipher": "XOR + Custom AES variant",
+    "beacon_version": "2.1.5",
+    "supported_os": ["Windows 10", "Windows 11", "Windows Server 2019/2022"],
+    "injection_target": "svchost.exe",
+    "persistence_methods": [
+      "HKLM\\...\\Run registry key",
+      "Scheduled Task",
+      "WMI Event Subscription",
+      "BITS Job",
+      "Windows Update service modification"
+    ]
+  },
+  "network_signatures": {
+    "user_agent_strings": [
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
+      "custom-beacon-client/2.1.5"
+    ],
+    "http_headers": [
+      {
+        "header": "Content-Type",
+        "value": "application/json",
+        "detection_value": "Always present in JSON requests"
+      },
+      {
+        "header": "X-Beacon-ID",
+        "value": "Encrypted session token",
+        "detection_value": "Unique per infected system"
+      },
+      {
+        "header": "Connection",
+        "value": "close",
+        "detection_value": "Non-persistent connections"
+      }
+    ],
+    "dns_patterns": [
+      "*.beacon.update-services.net",
+      "*.c2.windowsupdate-sync.com",
+      "*.updatecenter.cloud-monitor.io"
+    ],
+    "certificate_fingerprints": [
+      {
+        "sha256": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
+        "issuer": "Self-signed / Fake Microsoft",
+        "subject": "C=US, ST=WA, O=Microsoft, CN=update-services.net"
+      }
+    ],
+    "traffic_patterns": [
+      "Regular 5-minute POST requests to C2",
+      "JSON payloads with encrypted base64 data",
+      "TLS certificate mismatch (self-signed masquerading)",
+      "Unusual User-Agent for system process",
+      "POST requests from system process (svchost.exe)"
+    ]
+  },
+  "process_injection_indicators": {
+    "injection_method": "VirtualAllocEx + WriteProcessMemory + CreateRemoteThread",
+    "target_process": "svchost.exe",
+    "injected_dll": "beacon_core.dll (in-memory only)",
+    "dll_hash_sha256": "b1a2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
+    "suspicious_handles": [
+      "Unexpected network socket in svchost",
+      "Registry write access from svchost",
+      "File system access from svchost"
+    ]
+  },
+  "file_artifacts": {
+    "beacon_config_files": [
+      {
+        "path": "C:\\Windows\\System32\\drivers\\etc\\beacon_config.dat",
+        "purpose": "Encrypted beacon configuration",
+        "readable": false
+      },
+      {
+        "path": "C:\\ProgramData\\WindowsUpdate\\beacon.log",
+        "purpose": "Beacon activity log",
+        "readable": false
+      }
+    ],
+    "temporary_files": [
+      "C:\\Users\\[User]\\AppData\\Local\\Temp\\[GUID]\\*.tmp"
+    ]
+  },
+  "dga_patterns": {
+    "algorithm": "Pseudo-random domain generation",
+    "seed": "Current date + hardcoded seed",
+    "tld_pool": [".net", ".com", ".io", ".org"],
+    "domain_prefix_pool": ["beacon", "update", "sync", "check", "cloud"],
+    "generation_frequency": "Daily - new domain generated each day"
+  },
+  "event_log_signatures": {
+    "suspicious_process_creation": {
+      "event_id": 1,
+      "indicators": [
+        "svchost.exe spawning cmd.exe",
+        "svchost.exe spawning powershell.exe",
+        "Parent: svchost.exe, Command contains network commands"
+      ]
+    },
+    "network_connection_events": {
+      "event_id": 3,
+      "indicators": [
+        "svchost.exe connecting to external HTTPS",
+        "Source port: random, Destination port 443/8080",
+        "Destination: bulletproof hosting IPs"
+      ]
+    },
+    "dns_query_events": {
+      "event_id": 19,
+      "indicators": [
+        "Queries to beacon.update-services.net",
+        "Queries to c2.windowsupdate-sync.com",
+        "Recurring pattern every 5 minutes"
+      ]
+    }
+  },
+  "mitre_techniques": [
+    {
+      "technique_id": "T1071.001",
+      "technique_name": "Application Layer Protocol: Web Protocols",
+      "tactics": ["Command and Control"],
+      "confidence": "high"
+    },
+    {
+      "technique_id": "T1071.004",
+      "technique_name": "Application Layer Protocol: DNS",
+      "tactics": ["Command and Control"],
+      "confidence": "medium"
+    },
+    {
+      "technique_id": "T1041",
+      "technique_name": "Exfiltration Over C2 Channel",
+      "tactics": ["Exfiltration"],
+      "confidence": "high"
+    },
+    {
+      "technique_id": "T1095",
+      "technique_name": "Non-Application Layer Protocol",
+      "tactics": ["Command and Control"],
+      "confidence": "medium"
+    },
+    {
+      "technique_id": "T1571",
+      "technique_name": "Non-Standard Port",
+      "tactics": ["Command and Control"],
+      "confidence": "high"
+    },
+    {
+      "technique_id": "T1105",
+      "technique_name": "Ingress Tool Transfer",
+      "tactics": ["Command and Control"],
+      "confidence": "high"
+    }
+  ],
+  "recommended_hunting_queries": [
+    "Find processes making HTTPS connections to non-standard certificate authorities",
+    "Identify svchost.exe with outbound network connections on port 443",
+    "Search for DNS queries to *.update-services.net",
+    "Hunt for encrypted HTTP POST requests with JSON payloads",
+    "Find processes injecting code into system processes",
+    "Search for registry modifications by network-connected system processes"
+  ],
+  "metadata": {
+    "created": "2026-07-27T19:16:00Z",
+    "analyst": "Cleanskiier27",
+    "confidence_level": "High",
+    "sample_type": "Beacon / C2 Client",
+    "os_target": "Windows 10/11, Server 2019+",
+    "capability": "Remote command execution, data exfiltration, persistence"
+  }
+}
