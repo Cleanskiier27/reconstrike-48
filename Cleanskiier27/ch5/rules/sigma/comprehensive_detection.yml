@@ -1,0 +1,454 @@
+title: Comprehensive Malware Family Detection - Registry Persistence
+id: ch5-malware-persistence-registry-01
+description: Detects registry-based persistence for Windows Update masquerading malware
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection_reg_path:
+    RegistryPath|contains:
+      - '\Software\Microsoft\Windows\CurrentVersion\Run'
+      - '\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Run'
+  selection_value:
+    RegistryValueName|contains:
+      - 'WindowsUpdate'
+      - 'wupdater'
+      - 'wupdate'
+  selection_data:
+    RegistryValue|contains:
+      - 'wupdater.exe'
+      - 'windowsupdate'
+      - 'System32'
+  condition: selection_reg_path and (selection_value or selection_data)
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Process Injection
+id: ch5-malware-injection-01
+description: Detects process injection into system services
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_injection:
+    EventID: 10
+    TargetImage|endswith:
+      - 'svchost.exe'
+      - 'lsass.exe'
+      - 'services.exe'
+    CallTrace|contains:
+      - 'VirtualAllocEx'
+      - 'WriteProcessMemory'
+      - 'CreateRemoteThread'
+  condition: selection_injection
+level: critical
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Beacon Process Execution
+id: ch5-malware-beacon-execution-02
+description: Detects beacon process execution from dropper
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_parent:
+    ParentImage|endswith:
+      - 'wupdater.exe'
+      - 'InstallUpdate.exe'
+      - 'UpdateClient.exe'
+  selection_child:
+    Image|endswith:
+      - 'cmd.exe'
+      - 'powershell.exe'
+  condition: selection_parent and selection_child
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Suspicious System Network Connections
+id: ch5-malware-network-sys-03
+description: Detects suspicious outbound connections from system processes
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection_sysprocess:
+    Image|endswith:
+      - 'svchost.exe'
+      - 'services.exe'
+  selection_network:
+    DestinationPort: 443
+    Initiated: 'true'
+  selection_c2:
+    DestinationHostname|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+      - 'updatecenter.cloud-monitor.io'
+      - '185.220.101.45'
+      - '185.220.102.8'
+  condition: selection_sysprocess and selection_network and selection_c2
+level: critical
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - C2 Domain Resolution
+id: ch5-malware-dns-c2-04
+description: Detects DNS queries to known C2 domains
+logsource:
+  category: dns_query
+  product: windows
+detection:
+  selection_c2_domains:
+    QueryName|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+      - 'updatecenter.cloud-monitor.io'
+      - 'update-services.net'
+      - 'windowsupdate-sync.com'
+  condition: selection_c2_domains
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Scheduled Task Creation
+id: ch5-malware-scheduled-task-05
+description: Detects creation of scheduled tasks for persistent malware
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_schtasks:
+    Image|endswith: 'schtasks.exe'
+    CommandLine|contains: '/create'
+  selection_malicious:
+    CommandLine|contains:
+      - 'WindowsUpdateClient'
+      - 'wupdater'
+      - 'update'
+  condition: selection_schtasks and selection_malicious
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - File Write to System32
+id: ch5-malware-file-drop-06
+description: Detects suspicious file creation in System32
+logsource:
+  category: file_event
+  product: windows
+detection:
+  selection_system32:
+    TargetFilename|contains: 'C:\Windows\System32'
+  selection_executable:
+    TargetFilename|endswith: '.exe'
+  selection_suspicious:
+    TargetFilename|contains:
+      - 'wupdater'
+      - 'windowsupdate'
+      - 'servicehost'
+  condition: selection_system32 and selection_executable and selection_suspicious
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Hidden File Attributes
+id: ch5-malware-hidden-file-07
+description: Detects attempts to hide files using attributes
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_attrib:
+    Image|endswith: 'attrib.exe'
+    CommandLine|contains: '+h'
+  selection_target:
+    CommandLine|contains:
+      - 'System32'
+      - 'ProgramData'
+      - 'Temp'
+  condition: selection_attrib and selection_target
+level: medium
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Data Exfiltration via HTTPS
+id: ch5-malware-exfiltration-https-08
+description: Detects data exfiltration through HTTPS POST requests
+logsource:
+  category: proxy
+  product: windows
+detection:
+  selection_https:
+    c-ip|contains:
+      - '192.168'
+      - '10.'
+      - '172.'
+  selection_post:
+    method: 'POST'
+  selection_uri:
+    c-uri|contains:
+      - '/update/upload'
+      - '/sync/upload'
+      - '/beacon/report'
+  selection_destination:
+    cs-host|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+  condition: selection_https and selection_post and (selection_uri or selection_destination)
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - DNS TXT Query Tunneling
+id: ch5-malware-dns-tunnel-09
+description: Detects DNS TXT record queries used for command/control tunneling
+logsource:
+  category: dns_query
+  product: windows
+detection:
+  selection_txt:
+    QueryType: 'TXT'
+  selection_beacon:
+    QueryName|contains:
+      - 'cmd.beacon'
+      - 'command.beacon'
+      - 'status.beacon'
+      - 'update-services.net'
+  condition: selection_txt and selection_beacon
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Command Execution Chain
+id: ch5-malware-exec-chain-10
+description: Detects multi-stage command execution indicating beacon activity
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_parent:
+    ParentImage|endswith:
+      - 'svchost.exe'
+      - 'wupdater.exe'
+  selection_commands:
+    Image|endswith:
+      - 'cmd.exe'
+      - 'powershell.exe'
+    CommandLine|contains:
+      - 'ipconfig'
+      - 'whoami'
+      - 'tasklist'
+      - 'net user'
+      - 'systeminfo'
+      - 'dir'
+  condition: selection_parent and selection_commands
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Credential Access Attempt
+id: ch5-malware-credential-access-11
+description: Detects attempts to access stored credentials
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_process:
+    Image|endswith:
+      - 'wupdater.exe'
+      - 'svchost.exe'
+  selection_credential_api:
+    CommandLine|contains:
+      - 'CredEnum'
+      - 'LogonSessions'
+      - 'SAM'
+      - 'LSASS'
+  condition: selection_process and selection_credential_api
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - WMI Event Subscription Persistence
+id: ch5-malware-wmi-persistence-12
+description: Detects WMI event subscription creation for persistence
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_wmic:
+    Image|endswith: 'wmic.exe'
+  selection_event_consumer:
+    CommandLine|contains:
+      - 'EventConsumer'
+      - '__EventFilter'
+      - '__FilterToConsumerBinding'
+  condition: selection_wmic and selection_event_consumer
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Lateral Movement via Net Commands
+id: ch5-malware-lateral-move-13
+description: Detects lateral movement attempts using net commands
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_net:
+    Image|endswith:
+      - 'net.exe'
+      - 'net1.exe'
+  selection_commands:
+    CommandLine|contains:
+      - 'net use'
+      - 'net share'
+      - 'net view'
+  selection_parent:
+    ParentImage|endswith:
+      - 'wupdater.exe'
+      - 'svchost.exe'
+  condition: selection_net and selection_commands and selection_parent
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - BITS Transfer for Payload Download
+id: ch5-malware-bits-transfer-14
+description: Detects use of BITS for payload download and staging
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_bitsadmin:
+    Image|endswith: 'bitsadmin.exe'
+  selection_transfer:
+    CommandLine|contains:
+      - '/transfer'
+      - '/resume'
+      - '/create'
+  selection_suspicious_source:
+    CommandLine|contains:
+      - 'beacon.update-services.net'
+      - 'c2.windowsupdate-sync.com'
+  condition: selection_bitsadmin and selection_transfer
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Bulletproof Hosting IP Connections
+id: ch5-malware-bulletproof-ip-15
+description: Detects connections to known bulletproof hosting infrastructure
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection_ips:
+    DestinationIp:
+      - '185.220.101.45'
+      - '185.220.102.8'
+  condition: selection_ips
+level: critical
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Process Hollowing Indicator
+id: ch5-malware-hollowing-16
+description: Detects process hollowing techniques
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_hollowing:
+    EventID: 10
+    CallTrace|contains:
+      - 'SuspendThread'
+      - 'SetThreadContext'
+      - 'GetThreadContext'
+      - 'ResumeThread'
+  condition: selection_hollowing
+level: medium
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Anomalous Registry Access Pattern
+id: ch5-malware-registry-anomaly-17
+description: Detects suspicious registry access patterns
+logsource:
+  category: registry_access
+  product: windows
+detection:
+  selection_registry_enum:
+    EventID: 12
+  selection_suspicious_key:
+    RegistryPath|contains:
+      - 'CurrentVersion\Run'
+      - 'CurrentVersion\RunOnce'
+      - 'Services\'
+  selection_process:
+    Image|endswith:
+      - 'wupdater.exe'
+      - 'svchost.exe'
+      - 'explorer.exe'
+  condition: selection_registry_enum and selection_suspicious_key and selection_process
+level: medium
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Behavioral Chain Detection
+id: ch5-malware-behavior-chain-18
+description: Detects complete behavioral chain indicating malware infection
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_dropper:
+    Image|endswith:
+      - 'InstallUpdate.exe'
+      - 'UpdateClient.exe'
+  selection_load:
+    CommandLine|contains: 'wupdater'
+  selection_inject:
+    CommandLine|contains: 'svchost'
+  condition: selection_dropper and (selection_load or selection_inject)
+level: high
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Suspicious Outbound Port
+id: ch5-malware-nonstandard-port-19
+description: Detects outbound connections on suspicious ports
+logsource:
+  category: network_connection
+  product: windows
+detection:
+  selection_ports:
+    DestinationPort:
+      - 8080
+      - 8443
+      - 53
+  selection_process:
+    Image|endswith:
+      - 'svchost.exe'
+      - 'wupdater.exe'
+  condition: selection_ports and selection_process
+level: medium
+status: experimental
+
+---
+title: Comprehensive Malware Family Detection - Memory Injection Detection
+id: ch5-malware-memory-injection-20
+description: Detects suspicious memory injection and heap operations
+logsource:
+  category: raw_access_thread
+  product: windows
+detection:
+  selection_injection:
+    TargetObject|contains: 'wupdater.exe'
+  selection_suspicious:
+    EventID: 11
+    Thread|contains: 'VirtualAllocEx'
+  condition: selection_injection and selection_suspicious
+level: high
+status: experimental
