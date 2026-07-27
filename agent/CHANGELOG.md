@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- Added bundled GATES workflow assets under `.github/workflows/GATES-main/`.
+- Added bundled `preciseliens-money-main/` metadata snapshot files.
+
 ## [2026-04-02]
 
 ### Added

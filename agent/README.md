@@ -9,6 +9,8 @@ networkbusteros is a mixed PowerShell and Node.js toolkit for local automation a
 - HTTP service endpoint via nb-cloudone-server
 - Smoke test utility for validating service readiness
 - Integration sync scripts for model-suite sourcing
+- GATES dashboard workflow assets with a Flask admin app
+- Preciseliens metadata snapshot bundled under `preciseliens-money-main`
 
 ## Repository Layout
 
@@ -21,6 +23,8 @@ networkbusteros is a mixed PowerShell and Node.js toolkit for local automation a
 - scripts/source-model-suite.ps1: PowerShell sync script
 - scripts/source-model-suite.sh: Bash sync script
 - .github/workflows/source-model-suite.yml: CI automation for model sync
+- .github/workflows/GATES-main/: bundled GATES workflow assets
+- preciseliens-money-main/: bundled reference metadata and README snapshot
 
 ## Requirements
 
@@ -34,8 +38,8 @@ networkbusteros is a mixed PowerShell and Node.js toolkit for local automation a
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/Cleanskiier27/Dependabot.git
-cd Dependabot
+git clone https://github.com/Cleanskiier27/reconstrike-48.git
+cd reconstrike-48/agent
 ```
 
 2. Start the cloud server:
@@ -55,6 +59,23 @@ node nb-cloudone-smoketest.js
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\networkbusteros-powershell-service.ps1
 ```
+
+## Additional bundled assets
+
+### GATES workflow app
+
+The bundled GATES workflow app includes a simple Flask + SQLite control backend:
+
+```bash
+cd .github/workflows/GATES-main/app
+python seed.py
+python app.py
+```
+
+### Preciseliens metadata snapshot
+
+The `preciseliens-money-main` directory contains metadata and documentation snapshots
+that accompany the sourced model-suite references.
 
 ## Integration: Model Suite Sync
 
