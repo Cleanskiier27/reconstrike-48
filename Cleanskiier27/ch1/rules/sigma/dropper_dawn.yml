@@ -1,0 +1,292 @@
+title: Registry Persistence - WindowsUpdate Run Key Creation
+id: ch1-dropper-persistence-01
+description: Detects suspicious creation of Run registry key with WindowsUpdate name
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+  - https://attack.mitre.org/techniques/T1036/005/
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - challenge.ch1
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection:
+    RegistryPath|contains:
+      - '\Software\Microsoft\Windows\CurrentVersion\Run'
+      - '\Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Run'
+    RegistryValueName: 'WindowsUpdate'
+    RegistryValue|contains: 'wupdater.exe'
+  filter_legit:
+    Image|endswith:
+      - '\svchost.exe'
+      - '\winlogon.exe'
+      - '\system.exe'
+  condition: selection and not filter_legit
+level: high
+status: experimental
+
+---
+title: Process Creation - wupdater.exe from Suspicious Parent
+id: ch1-dropper-execution-02
+description: Detects execution of wupdater.exe from non-standard parent processes
+references:
+  - https://attack.mitre.org/techniques/T1036/005/
+tags:
+  - attack.execution
+  - attack.defense_evasion
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: 'wupdater.exe'
+  filter_legit:
+    ParentImage|endswith:
+      - '\svchost.exe'
+      - '\services.exe'
+  condition: selection and not filter_legit
+level: high
+status: experimental
+
+---
+title: Suspicious File Creation in System32
+id: ch1-dropper-file-drop-03
+description: Detects dropper payload files written to System32 directory
+references:
+  - https://attack.mitre.org/techniques/T1036/005/
+tags:
+  - attack.defense_evasion
+  - attack.execution
+  - challenge.ch1
+logsource:
+  category: file_event
+  product: windows
+detection:
+  selection:
+    TargetFilename|contains: 'C:\Windows\System32\wupdate'
+    TargetFilename|endswith: '.exe'
+  filter_system:
+    Image|endswith: 'explorer.exe'
+  condition: selection and not filter_system
+level: high
+status: experimental
+
+---
+title: Registry Run Key Modification by Non-Standard Process
+id: ch1-dropper-privilege-04
+description: Detects write to HKLM Run key from user-level processes
+references:
+  - https://attack.mitre.org/techniques/T1547/001/
+tags:
+  - attack.persistence
+  - attack.privilege_escalation
+  - challenge.ch1
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection:
+    EventID: 4657
+    RegistryPath|contains: '\Software\Microsoft\Windows\CurrentVersion\Run'
+    RegistryHive: 'HKEY_LOCAL_MACHINE'
+  filter_admin:
+    ProcessId|contains: 'system'
+  condition: selection and not filter_admin
+level: high
+status: experimental
+
+---
+title: UAC Bypass Attempt - Registry Modification
+id: ch1-dropper-uac-bypass-05
+description: Detects UAC bypass combined with malicious registry modifications
+references:
+  - https://attack.mitre.org/techniques/T1548/002/
+  - https://attack.mitre.org/techniques/T1547/001/
+tags:
+  - attack.privilege_escalation
+  - attack.defense_evasion
+  - challenge.ch1
+logsource:
+  category: registry_set
+  product: windows
+detection:
+  selection_uac_bypass:
+    Image|endswith:
+      - 'fodhelper.exe'
+      - 'eventvwr.exe'
+      - 'msiexec.exe'
+  selection_malicious_reg:
+    RegistryPath|contains:
+      - 'WindowsUpdate'
+      - 'wupdater'
+  condition: selection_uac_bypass and selection_malicious_reg
+level: high
+status: experimental
+
+---
+title: Scheduled Task Creation - WindowsUpdateClient
+id: ch1-dropper-scheduled-task-06
+description: Detects suspicious scheduled task creation with WindowsUpdate naming
+references:
+  - https://attack.mitre.org/techniques/T1547/010/
+tags:
+  - attack.persistence
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_schtasks:
+    Image|endswith: 'schtasks.exe'
+    CommandLine|contains: '/create'
+  selection_malicious:
+    CommandLine|contains:
+      - 'WindowsUpdateClient'
+      - 'wupdater'
+  condition: selection_schtasks and selection_malicious
+level: medium
+status: experimental
+
+---
+title: Hidden File Attribute Set on System32 Binary
+id: ch1-dropper-hide-file-07
+description: Detects attempts to hide executables in System32 directory
+references:
+  - https://attack.mitre.org/techniques/T1564/001/
+tags:
+  - attack.defense_evasion
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith: 'attrib.exe'
+    CommandLine|contains: '+h'
+    CommandLine|contains: 'System32'
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Process Injection Setup - VirtualAllocEx and CreateRemoteThread
+id: ch1-dropper-injection-08
+description: Detects process injection preparations by dropper
+references:
+  - https://attack.mitre.org/techniques/T1055/
+tags:
+  - attack.defense_evasion
+  - attack.execution
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    EventID: 10  # CreateRemoteThread
+    SourceImage|endswith: 'wupdater.exe'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: Token Privilege Escalation - SeDebugPrivilege Enable
+id: ch1-dropper-token-priv-09
+description: Detects attempts to enable SeDebugPrivilege for privilege escalation
+references:
+  - https://attack.mitre.org/techniques/T1134/003/
+tags:
+  - attack.privilege_escalation
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    EventID: 4627
+    PrivilegeList|contains: 'SeDebugPrivilege'
+    Image|endswith: 'wupdater.exe'
+  condition: selection
+level: high
+status: experimental
+
+---
+title: Antivirus Detection - Process Enumeration
+id: ch1-dropper-av-enum-10
+description: Detects dropper enumerating antivirus processes
+references:
+  - https://attack.mitre.org/techniques/T1518/
+tags:
+  - attack.discovery
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection:
+    Image|endswith:
+      - 'tasklist.exe'
+      - 'wmic.exe'
+      - 'Get-Process'
+    CommandLine|contains:
+      - 'kaspersky'
+      - 'ahnlab'
+      - 'avast'
+      - 'bitdefender'
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Registry Enumeration - Windows Update Keys
+id: ch1-dropper-reg-enum-11
+description: Detects excessive registry reading of Windows Update configuration
+references:
+  - https://attack.mitre.org/techniques/T1012/
+tags:
+  - attack.discovery
+  - challenge.ch1
+logsource:
+  category: registry_access
+  product: windows
+detection:
+  selection:
+    RegistryPath|contains: 'WindowsUpdate'
+    RegistryPath|contains: 'Run'
+    EventType: 'DeleteValue'
+  condition: selection
+level: medium
+status: experimental
+
+---
+title: Dropper Process Tree - Complete Chain
+id: ch1-dropper-process-tree-12
+description: Detects complete dropper attack chain in process creation events
+references:
+  - https://attack.mitre.org/techniques/T1566/002/
+tags:
+  - attack.execution
+  - attack.persistence
+  - challenge.ch1
+logsource:
+  category: process_creation
+  product: windows
+detection:
+  selection_dropper:
+    Image|endswith: 'InstallUpdate.exe'
+    CommandLine|contains:
+      - 'update'
+      - 'install'
+  selection_child_processes:
+    ParentImage|endswith: 'InstallUpdate.exe'
+    Image|endswith:
+      - 'cmd.exe'
+      - 'powershell.exe'
+      - 'wupdater.exe'
+  condition: selection_dropper and selection_child_processes
+level: high
+status: experimental

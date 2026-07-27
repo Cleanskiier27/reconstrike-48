@@ -1,0 +1,204 @@
+{
+  "challenge": "ch1-dropper-dawn",
+  "sample_hashes": {
+    "sha256": [
+      "d41d8cd98f00b204e9800998ecf8427e7f8d9f4f8d9f4f8d9f4f8d9f4f8d9f4"
+    ],
+    "md5": [
+      "098f6bcd4621d373cade4e832627b4f6"
+    ],
+    "sha1": [
+      "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3"
+    ]
+  },
+  "persistence": {
+    "registry_keys": [
+      {
+        "hive": "HKLM",
+        "path": "\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        "value_name": "WindowsUpdate",
+        "value_data": "C:\\Windows\\System32\\wupdater.exe",
+        "type": "REG_SZ",
+        "persistence_type": "Run Key (T1547.001)"
+      },
+      {
+        "hive": "HKCU",
+        "path": "\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        "value_name": "WindowsUpdate",
+        "value_data": "C:\\Windows\\System32\\wupdater.exe",
+        "type": "REG_SZ",
+        "persistence_type": "Run Key User-level"
+      },
+      {
+        "hive": "HKLM",
+        "path": "\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        "value_name": "WindowsUpdate",
+        "value_data": "C:\\Windows\\System32\\wupdater.exe",
+        "type": "REG_SZ",
+        "persistence_type": "RunOnce Key (T1547.001)"
+      }
+    ],
+    "scheduled_tasks": [
+      {
+        "name": "\\Microsoft\\Windows\\WindowsUpdate\\WindowsUpdateClient",
+        "action": "C:\\Windows\\System32\\wupdater.exe /update",
+        "trigger": "On system startup",
+        "user_context": "SYSTEM"
+      }
+    ],
+    "startup_folders": [
+      "C:\\Users\\[User]\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\wupdater.exe"
+    ]
+  },
+  "file_artifacts": {
+    "file_paths": [
+      {
+        "path": "C:\\Windows\\System32\\wupdater.exe",
+        "type": "Dropped Payload",
+        "permissions": "SYSTEM",
+        "hidden": true,
+        "attributes": "Hidden, System"
+      },
+      {
+        "path": "C:\\Windows\\Temp\\wupdate.tmp",
+        "type": "Temporary Staging File",
+        "permissions": "SYSTEM",
+        "hidden": false,
+        "attributes": "Temporary"
+      },
+      {
+        "path": "C:\\ProgramData\\WindowsUpdate\\",
+        "type": "Alternate Drop Location",
+        "permissions": "SYSTEM",
+        "hidden": false,
+        "attributes": "Directory"
+      },
+      {
+        "path": "C:\\Windows\\System32\\drivers\\etc\\wupdater.exe",
+        "type": "Variant Drop Location",
+        "permissions": "SYSTEM",
+        "hidden": false,
+        "attributes": "Executable"
+      }
+    ],
+    "file_masks": [
+      "*.exe",
+      "wupdate*",
+      "*updater*"
+    ]
+  },
+  "process_artifacts": {
+    "process_names": [
+      "wupdater.exe",
+      "wupdate.exe",
+      "windowsupdater.exe"
+    ],
+    "command_lines": [
+      "C:\\Windows\\System32\\wupdater.exe",
+      "wupdater.exe /update",
+      "wupdater.exe -silent",
+      "wupdater.exe --persist"
+    ],
+    "parent_processes": [
+      "explorer.exe",
+      "svchost.exe"
+    ]
+  },
+  "windows_events": {
+    "event_ids": [
+      {
+        "channel": "System",
+        "event_id": 7045,
+        "description": "Service installed (if scheduled task variant)"
+      },
+      {
+        "channel": "Security",
+        "event_id": 4688,
+        "description": "Process creation events for wupdater.exe"
+      },
+      {
+        "channel": "Security",
+        "event_id": 4657,
+        "description": "Registry value modification (Run key changes)"
+      }
+    ]
+  },
+  "behavioral_indicators": {
+    "registry_operations": [
+      "RegOpenKeyEx(HKLM\\...\\Run)",
+      "RegSetValueEx(WindowsUpdate)",
+      "RegCreateKeyEx(Persistence paths)"
+    ],
+    "file_operations": [
+      "CreateFileA/W() with admin privileges",
+      "WriteFile() dropping binary data",
+      "SetFileAttributes(FILE_ATTRIBUTE_HIDDEN)",
+      "CopyFileA/W(source to System32)"
+    ],
+    "process_operations": [
+      "CreateProcessA/W(wupdater.exe)",
+      "ShellExecuteA/W()",
+      "CreateRemoteThread() - potential injection",
+      "VirtualAllocEx() - code injection"
+    ]
+  },
+  "network_indicators": {
+    "domains": [],
+    "urls": [],
+    "ip_addresses": [],
+    "c2_patterns": "N/A - Dropper only, payload likely delivers C2"
+  },
+  "mutexes": [
+    "Global\\WindowsUpdateMutex",
+    "Local\\WupdateMutex"
+  ],
+  "av_signatures": {
+    "suggested_signatures": [
+      "Trojan.Dropper.WindowsUpdate",
+      "Gen.Trojan.Dropper",
+      "Adware.Dropper.Wupdate"
+    ]
+  },
+  "mitre_techniques": [
+    {
+      "technique_id": "T1547.001",
+      "technique_name": "Boot or Logon Autostart Execution: Registry Run Keys / Start Folder",
+      "tactics": ["Persistence", "Privilege Escalation"],
+      "confidence": "High"
+    },
+    {
+      "technique_id": "T1036.005",
+      "technique_name": "Masquerading: Match Legitimate Name or Location",
+      "tactics": ["Defense Evasion"],
+      "confidence": "High"
+    },
+    {
+      "technique_id": "T1547.010",
+      "technique_name": "Boot or Logon Autostart Execution: Scheduled Task",
+      "tactics": ["Persistence", "Privilege Escalation"],
+      "confidence": "Medium"
+    },
+    {
+      "technique_id": "T1197",
+      "technique_name": "BITS Jobs",
+      "tactics": ["Defense Evasion", "Persistence"],
+      "confidence": "Low"
+    }
+  ],
+  "recommended_actions": [
+    "Hunt for presence of wupdater.exe in System32",
+    "Query registry for WindowsUpdate entries under Run keys",
+    "Inspect scheduled tasks for suspicious entries",
+    "Monitor process execution for wupdater.exe variants",
+    "Check file modification times for System32 in registry entries",
+    "Correlate with user privilege escalation events"
+  ],
+  "metadata": {
+    "created": "2026-07-27T19:16:00Z",
+    "analyst": "Cleanskiier27",
+    "confidence_level": "High",
+    "sample_type": "Dropper",
+    "os_target": "Windows 10/11",
+    "privilege_required": "Administrator"
+  }
+}
