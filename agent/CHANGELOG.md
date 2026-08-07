@@ -5,8 +5,9 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
-- Added bundled GATES workflow assets under `.github/workflows/GATES-main/`.
-- Added bundled `preciseliens-money-main/` metadata snapshot files.
+- Added an ASCII-only `scripts/networkbuster-gcloud.ps1` helper for gcloud and Composer workflows.
+- Updated the agent docs to include the new gcloud CLI helper.
+- Kept the bundled GATES and Preciseliens assets documented for the main server project.
 
 ## [2026-04-02]
 
