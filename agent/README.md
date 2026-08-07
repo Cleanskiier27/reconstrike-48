@@ -11,6 +11,7 @@ networkbusteros is a mixed PowerShell and Node.js toolkit for local automation a
 - Integration sync scripts for model-suite sourcing
 - GATES dashboard workflow assets with a Flask admin app
 - Preciseliens metadata snapshot bundled under `preciseliens-money-main`
+- ASCII-only gcloud helper for Composer and server workflows
 
 ## Repository Layout
 
@@ -22,6 +23,7 @@ networkbusteros is a mixed PowerShell and Node.js toolkit for local automation a
 - integration/model-suite/README.md: model-suite integration details
 - scripts/source-model-suite.ps1: PowerShell sync script
 - scripts/source-model-suite.sh: Bash sync script
+- scripts/networkbuster-gcloud.ps1: ASCII-only gcloud helper
 - .github/workflows/source-model-suite.yml: CI automation for model sync
 - .github/workflows/GATES-main/: bundled GATES workflow assets
 - preciseliens-money-main/: bundled reference metadata and README snapshot
@@ -77,6 +79,15 @@ python app.py
 The `preciseliens-money-main` directory contains metadata and documentation snapshots
 that accompany the sourced model-suite references.
 
+### gcloud helper
+
+Use the ASCII-only helper to run gcloud, list Composer environments, inspect DAGs,
+and read Composer logs:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 help
+```
+
 ## Integration: Model Suite Sync
 
 Use one of the sync scripts to source model files into vendor/transformers-model-suite/models.
@@ -94,6 +105,25 @@ bash ./scripts/source-model-suite.sh
 ```
 
 CI automation is configured in .github/workflows/source-model-suite.yml.
+
+## gcloud CLI helper
+
+Run the ASCII-only PowerShell helper for common gcloud and Composer tasks:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 help
+```
+
+Examples:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 auth
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 version
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 composer-envs -Project my-project
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 composer-dags -Environment my-env -Location us-central1
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 composer-runs -Environment my-env -DagId my_dag
+powershell -ExecutionPolicy Bypass -File .\scripts\networkbuster-gcloud.ps1 composer-logs -Environment my-env -DagId my_dag -TaskId my_task
+```
 
 ## Releases
 

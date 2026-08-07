@@ -9,7 +9,8 @@
 This submission packages the local **networkbusteros** toolkit as a lightweight
 agent under the `/agent` directory. It provides a cloud-ready smoke-test server,
 a reusable PowerShell module loader, a Node.js bootstrap loader, automated
-model-suite sourcing scripts, and bundled local workflow/reference assets.
+model-suite sourcing scripts, bundled local workflow/reference assets, and an
+ASCII-only gcloud helper for the main server project.
 
 ## What it does
 
@@ -26,6 +27,7 @@ model-suite sourcing scripts, and bundled local workflow/reference assets.
   when the sourced model suite changes.
 - `.github/workflows/GATES-main/` — bundled Flask-based admin workflow assets.
 - `preciseliens-money-main/` — bundled reference metadata snapshot.
+- `scripts/networkbuster-gcloud.ps1` — ASCII-only gcloud helper.
 
 ## How to run
 
